@@ -1,0 +1,15 @@
+# Data directories
+MAGFiLO_1.0_Kaggle_2026/
+yolo_dataset/
+
+# Model outputs & training runs
+output/
+runs/
+.tmp.drivedownload/
+.tmp.driveupload/
+
+# Model weights
+*.pt
+
+# Outputs / submissions
+submission.csv
