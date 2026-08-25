@@ -1,0 +1,5 @@
+{
+  "best_threshold": 0.8,
+  "best_min_area": 20,
+  "oof_dice": 1.3365660410628686e-12
+}

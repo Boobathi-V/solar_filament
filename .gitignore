@@ -1,15 +1,89 @@
-# Data directories
-MAGFiLO_1.0_Kaggle_2026/
-yolo_dataset/
+# ==========================================
+# WINDOWS SYSTEM FILES
+# ==========================================
+desktop.ini
+Thumbs.db
+$RECYCLE.BIN/
+ehthumbs.db
 
-# Model outputs & training runs
-output/
-runs/
-.tmp.drivedownload/
-.tmp.driveupload/
+# ==========================================
+# MAC / LINUX SYSTEM FILES
+# ==========================================
+.DS_Store
+.AppleDouble
+.LSOverride
 
-# Model weights
+# ==========================================
+# PYTHON
+# ==========================================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.python-version
+
+# ==========================================
+# VIRTUAL ENVIRONMENT / INSTALLATION FILES
+# ==========================================
+.venv/
+venv/
+env/
+ENV/
+
+# Pip cache
+pip-wheel-metadata/
+*.egg-info/
+.eggs/
+
+# Conda
+.conda/
+conda-meta/
+
+# ==========================================
+# VS CODE
+# ==========================================
+.vscode/
+.history/
+
+# ==========================================
+# JUPYTER
+# ==========================================
+.ipynb_checkpoints/
+
+# ==========================================
+# DATASETS (KAGGLE)
+# ==========================================
+filament-segmentation-2026/
+dataset/
+data/
+train/
+test/
+validation/
+
+# ==========================================
+# TRAINED MODEL FILES
+# ==========================================
+models/
+*.pth
 *.pt
+*.ckpt
+*.h5
+*.keras
 
-# Outputs / submissions
-submission.csv
+# ==========================================
+# GENERATED OUTPUT FILES
+# ==========================================
+submission*.csv
+oof_predictions.npy
+mask_sanity_check.png
+*.log
+logs/
+
+# ==========================================
+# TEMPORARY FILES
+# ==========================================
+.tmp.driveupload/
+.cache/
+*.tmp
+*.bak
