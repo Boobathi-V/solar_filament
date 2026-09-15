@@ -354,124 +354,141 @@ directories = [
 
 
 # ------------------------------------------------------------
-# TRAIN IMAGES
+# ROBUST TRAIN & TEST IMAGE DISCOVERY (VERIFIED AGAINST JSON)
 # ------------------------------------------------------------
 
-train_image_candidates = []
+# Read sample filenames from TRAIN_JSON to guarantee matching the solar filament dataset!
+target_sample_filenames = set()
+try:
+    with open(TRAIN_JSON, "r", encoding="utf-8") as f:
+        coco_meta = json.load(f)
+    for img_info in coco_meta.get("images", [])[:50]:
+        target_sample_filenames.add(img_info["file_name"].lower())
+except Exception as e:
+    print(f"Notice reading COCO sample names: {e}")
 
-for p in directories:
+print(f"Sample target filament filenames to verify: {len(target_sample_filenames)}")
 
-    name = p.name.lower()
+def directory_matches_json(dir_path):
+    if not dir_path.is_dir():
+        return 0
+    matches = 0
+    try:
+        for f in dir_path.iterdir():
+            if f.is_file() and f.name.lower() in target_sample_filenames:
+                matches += 1
+    except Exception:
+        pass
+    return matches
 
-    score = 0
+# 1. Search for TRAIN_IMAGES
+TRAIN_IMAGES = None
 
-    if name == "train_images":
-        score += 100
+# First priority: check TRAIN_JSON's direct neighborhood (siblings / parent / cousin)
+immediate_train_candidates = [
+    TRAIN_JSON.parent / "train_images",
+    TRAIN_JSON.parent / "images",
+    TRAIN_JSON.parent,
+    TRAIN_JSON.parent.parent / "train_images",
+    TRAIN_JSON.parent.parent / "train" / "train_images",
+    TRAIN_JSON.parent.parent / "images"
+]
 
-    if "train" in name:
-        score += 30
+for cand in immediate_train_candidates:
+    if cand.exists() and cand.is_dir() and directory_matches_json(cand) > 0:
+        TRAIN_IMAGES = cand
+        print(f"✅ Found verified TRAIN_IMAGES via JSON neighborhood: {TRAIN_IMAGES}")
+        break
 
-    n = count_images(p)
+# Second priority: search all discovered directories for actual matching filenames
+if TRAIN_IMAGES is None:
+    best_match_count = 0
+    for d in directories:
+        d_str = str(d).lower()
+        if any(unrelated in d_str for unrelated in ["aptos", "blindness", "sih", "resume"]):
+            continue
+        m_count = directory_matches_json(d)
+        if m_count > best_match_count:
+            best_match_count = m_count
+            TRAIN_IMAGES = d
 
-    if n > 0:
-        score += min(n, 100000) / 100000
-
-        train_image_candidates.append(
-            (score, n, p)
-        )
-
-
-train_image_candidates.sort(
-    reverse=True,
-    key=lambda x: x[0]
-)
-
-
-TRAIN_IMAGES = (
-    train_image_candidates[0][2]
-    if train_image_candidates
-    else None
-)
-
+# Fallback heuristic if sample matching was empty
+if TRAIN_IMAGES is None:
+    train_cands = []
+    for p in directories:
+        d_str = str(p).lower()
+        if any(unrelated in d_str for unrelated in ["aptos", "blindness", "sih", "resume"]):
+            continue
+        score = 0
+        if "filament" in d_str or "magfilo" in d_str:
+            score += 200
+        if p.name.lower() == "train_images":
+            score += 100
+        elif "train" in p.name.lower():
+            score += 30
+        n = count_images(p)
+        if n > 0:
+            score += min(n, 10000) / 10000
+            train_cands.append((score, n, p))
+    train_cands.sort(reverse=True, key=lambda x: x[0])
+    if train_cands:
+        TRAIN_IMAGES = train_cands[0][2]
 
 if TRAIN_IMAGES is None:
-
-    raise FileNotFoundError(
-        "❌ Could not find training image directory."
-    )
-
+    raise FileNotFoundError("❌ Could not find training image directory.")
 
 print()
 print("✅ TRAIN IMAGES")
 print(TRAIN_IMAGES)
+print("Training images found:", count_images(TRAIN_IMAGES))
 
-print(
-    "Training images found:",
-    train_image_candidates[0][1]
-)
+# 2. Search for TEST_IMAGES
+TEST_IMAGES = None
 
+immediate_test_candidates = [
+    TRAIN_JSON.parent.parent / "test" / "test_images",
+    TRAIN_JSON.parent.parent / "test_images",
+    TRAIN_JSON.parent.parent / "test",
+    TRAIN_JSON.parent / "test_images",
+    TRAIN_JSON.parent / "test"
+]
 
-# ------------------------------------------------------------
-# TEST IMAGES
-# ------------------------------------------------------------
-
-test_image_candidates = []
-
-for p in directories:
-
-    name = p.name.lower()
-
-    score = 0
-
-    if name == "test_images":
-        score += 100
-
-    if name == "test":
-        score += 80
-
-    if "test" in name:
-        score += 30
-
-    n = count_images(p)
-
-    if n > 0:
-
-        score += min(n, 100000) / 100000
-
-        test_image_candidates.append(
-            (score, n, p)
-        )
-
-
-test_image_candidates.sort(
-    reverse=True,
-    key=lambda x: x[0]
-)
-
-
-TEST_IMAGES = (
-    test_image_candidates[0][2]
-    if test_image_candidates
-    else None
-)
-
+for cand in immediate_test_candidates:
+    if cand.exists() and cand.is_dir() and count_images(cand) > 0:
+        TEST_IMAGES = cand
+        print(f"✅ Found verified TEST_IMAGES via neighborhood: {TEST_IMAGES}")
+        break
 
 if TEST_IMAGES is None:
+    test_cands = []
+    for p in directories:
+        d_str = str(p).lower()
+        if any(unrelated in d_str for unrelated in ["aptos", "blindness", "sih", "resume"]):
+            continue
+        score = 0
+        if "filament" in d_str or "magfilo" in d_str:
+            score += 200
+        if p.name.lower() == "test_images":
+            score += 100
+        elif p.name.lower() == "test":
+            score += 80
+        elif "test" in p.name.lower():
+            score += 30
+        n = count_images(p)
+        if n > 0:
+            score += min(n, 10000) / 10000
+            test_cands.append((score, n, p))
+    test_cands.sort(reverse=True, key=lambda x: x[0])
+    if test_cands:
+        TEST_IMAGES = test_cands[0][2]
 
-    raise FileNotFoundError(
-        "❌ Could not find test image directory."
-    )
-
+if TEST_IMAGES is None:
+    raise FileNotFoundError("❌ Could not find test image directory.")
 
 print()
 print("✅ TEST IMAGES")
 print(TEST_IMAGES)
-
-print(
-    "Test images found:",
-    test_image_candidates[0][1]
-)
-
+print("Test images found:", count_images(TEST_IMAGES))
 
 # ============================================================
 # 8. FIND TRAINED YOLO CHECKPOINT
