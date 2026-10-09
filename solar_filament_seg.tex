@@ -1,0 +1,940 @@
+\documentclass[11pt,a4paper,openany]{report}
+
+% ============================================================
+% PACKAGES
+% ============================================================
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{titlesec}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{tocloft}
+\usepackage{parskip}
+\usepackage{array}
+
+% ============================================================
+% CODE LISTING STYLE
+% ============================================================
+\definecolor{codebg}{rgb}{0.96,0.96,0.96}
+\definecolor{codekw}{rgb}{0.0,0.0,0.6}
+\definecolor{codecom}{rgb}{0.35,0.55,0.35}
+\definecolor{codestr}{rgb}{0.6,0.0,0.0}
+
+\lstdefinestyle{pystyle}{
+    backgroundcolor=\color{codebg},
+    basicstyle=\ttfamily\footnotesize,
+    keywordstyle=\color{codekw}\bfseries,
+    commentstyle=\color{codecom}\itshape,
+    stringstyle=\color{codestr},
+    numberstyle=\tiny\color{gray},
+    numbers=left,
+    stepnumber=1,
+    frame=single,
+    rulecolor=\color{black!30},
+    breaklines=true,
+    breakatwhitespace=false,
+    showstringspaces=false,
+    tabsize=4,
+    language=Python,
+    captionpos=b
+}
+
+\lstset{style=pystyle}
+
+% ============================================================
+% PAGE STYLE
+% ============================================================
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Solar Filament Segmentation 2026}
+\fancyhead[R]{\small \leftmark}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ============================================================
+% TITLE FORMATTING — chapters flow inline (no forced page break)
+% ============================================================
+\titleclass{\chapter}{straight}
+\titleformat{\chapter}[block]
+  {\normalfont\Large\bfseries}
+  {\chaptername\ \thechapter\quad}{0pt}{}
+\titlespacing*{\chapter}{0pt}{24pt}{10pt}
+
+% ============================================================
+% HYPERREF SETUP
+% ============================================================
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!60!black,
+    urlcolor=blue!70!black,
+    citecolor=green!40!black,
+    pdftitle={Solar Filament Segmentation 2026 -- Technical Report},
+    pdfauthor={Boobathi},
+    pdfsubject={Instance Segmentation, YOLOv8, Solar Physics}
+}
+
+% ============================================================
+% DOCUMENT
+% ============================================================
+\begin{document}
+
+% ============================================================
+% TITLE PAGE
+% ============================================================
+\begin{titlepage}
+\centering
+\vspace*{2cm}
+{\Huge\bfseries Solar Filament Segmentation 2026\par}
+\vspace{0.5cm}
+{\Large An End-to-End Instance Segmentation Pipeline using YOLOv8l-Seg\\
+on the MAGFiLO Dataset\par}
+\vspace{1.5cm}
+{\large A Technical Project Report\\
+Based on the \texttt{solaris.py} Implementation\par}
+\vspace{1.5cm}
+{\large\itshape Prepared by: Boobathi\par}
+\vspace{0.3cm}
+{\large Department of Computer Science and Engineering\par}
+\vspace{0.3cm}
+{\large September 18, 2026\par}
+\vspace{2cm}
+\begin{abstract}
+\noindent
+Solar filaments are elongated, dark, thread-like structures observed in H-alpha images of the
+Sun's chromosphere. Automated detection and segmentation of filaments is important for
+space-weather monitoring, since filament eruptions are closely linked to Coronal Mass Ejections
+(CMEs) that can affect satellites, power grids, and communication systems on Earth.
+
+This report documents \textbf{Solaris}, an end-to-end deep learning pipeline implemented in
+\texttt{solaris.py} that performs instance segmentation of solar filaments using the YOLOv8l-Seg
+architecture, trained and evaluated on the MAGFiLO 1.0 dataset (Kaggle 2026 competition format).
+The pipeline is designed to be portable across Kaggle, Google Colab, and local environments,
+and covers five major stages:
+\begin{enumerate}[label=(\arabic*)]
+  \item Environment and path resolution across multiple hosting platforms.
+  \item Dataset conversion from COCO-style polygon/RLE annotations into normalized YOLO
+        segmentation labels.
+  \item Model training of YOLOv8l-Seg at high resolution ($2048\times2048$) with domain-specific augmentation.
+  \item Inference at high precision with strict confidence thresholding and duplicate suppression.
+  \item Post-processing via priority-based overlap removal and conversion of binary masks into
+        Run-Length Encoded (RLE) strings for Kaggle-style submission.
+\end{enumerate}
+Each function in \texttt{solaris.py} is explained line-by-line, with the underlying mathematics
+(Dice score, IoU, mask normalization, RLE encoding) derived explicitly. The report closes with
+an evaluation of the pipeline's design choices, its limitations, and directions for future improvement.
+\end{abstract}
+\end{titlepage}
+
+% ============================================================
+% TABLE OF CONTENTS
+% ============================================================
+\tableofcontents
+
+% ============================================================
+% CHAPTER 1 - INTRODUCTION
+% ============================================================
+\chapter{Introduction}
+
+\section{What is a Solar Filament?}
+
+A solar filament is a mass of relatively cool, dense plasma suspended above the Sun's surface by
+magnetic field lines, appearing as a dark, thread-like structure when observed in H-alpha
+(656.3\,nm) light against the brighter chromosphere. When the same structure is observed on
+the solar limb (edge) rather than on the disk, it appears bright and is called a \textit{prominence}.
+Filaments trace magnetic polarity inversion lines and are of major interest to space-weather
+forecasters because their eruption is frequently associated with Coronal Mass Ejections (CMEs).
+
+\section{Why Automate Filament Detection?}
+
+Historically, filament identification has relied on manual annotation by solar physicists, which is
+slow, subjective, and difficult to scale to the volume of daily full-disk H-alpha imagery produced
+by observatories. An automated, pixel-accurate segmentation system enables:
+
+\begin{itemize}
+  \item Consistent, reproducible filament catalogs across years of data.
+  \item Near real-time flagging of filaments for space-weather alerting.
+  \item Quantitative morphological studies (length, area, orientation) at scale.
+\end{itemize}
+
+\section{Problem Statement}
+
+Given a full-disk H-alpha solar image, the task is to produce a set of \textbf{pixel-accurate instance
+segmentation masks}, one per filament, with \textbf{no overlapping pixels} between instances.
+This is framed as a Kaggle-style competition (\texttt{filament-segmentation-2026}) using the
+MAGFiLO 1.0 dataset, where predictions must be submitted as Run-Length Encoded masks in a
+CSV file.
+
+\section{Overview of the Solaris Pipeline}
+
+The \texttt{solaris.py} script implements the complete pipeline in five logical stages:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{>{\bfseries}c l l}
+\toprule
+Stage & Function(s) & Purpose \\
+\midrule
+1 & \texttt{resolve\_paths()} & Locate dataset and working directories \\
+2 & \texttt{convert\_coco\_to\_yolo\_seg()} & Convert COCO annotations to YOLO format \\
+3 & \texttt{train\_yolov8l\_seg()} & Train the segmentation model \\
+4 & \texttt{run\_inference()} & Predict masks on test images \\
+5 & \texttt{mask\_to\_rle()}, \texttt{remove\_instance\_overlaps()} & Post-process and encode submission \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ============================================================
+% CHAPTER 2
+% ============================================================
+\chapter{Environment and Dataset Resolution}
+
+\section{The Portability Problem}
+
+Machine learning notebooks are frequently developed on one platform (e.g.\ a local machine)
+and then executed on another (Kaggle kernels, Google Colab). Each platform mounts datasets
+at different filesystem paths. Rather than hard-coding a single path, Solaris implements an
+auto-detection routine.
+
+\section{The \texttt{resolve\_paths()} Function}
+
+\begin{lstlisting}[caption={Environment auto-detection},label={lst:resolve}]
+def resolve_paths():
+    search_roots = [
+        ".",
+        "filament-segmentation-2026/MAGFiLO_1.0_Kaggle_2026",
+        "/content",
+        "/content/filament-segmentation-2026/MAGFiLO_1.0_Kaggle_2026",
+        "/content/drive/MyDrive/kaggle_SF",
+        "/kaggle/input/competitions/filament-segmentation-2026/...",
+        "/kaggle/input/filament-segmentation-2026/..."
+    ]
+    for root in search_roots:
+        if not os.path.exists(root):
+            continue
+        candidate_jsons = glob.glob(
+            os.path.join(root, "**", "*Annotations*train*.json"),
+            recursive=True)
+        ...
+\end{lstlisting}
+
+\begin{enumerate}
+  \item A list of candidate root directories is defined, covering local execution, Google Colab,
+        Colab with Google Drive, and two Kaggle mount points.
+  \item For each existing root, \texttt{glob.glob} with \texttt{recursive=True} searches for the COCO
+        training JSON, a \texttt{train\_images} folder, and a \texttt{test\_images} folder.
+  \item The first match for each category is kept so earlier entries take priority.
+  \item Working directory is chosen by platform: \texttt{/kaggle/working} for Kaggle,
+        \texttt{/content/working\_solaris} for Colab, or a local folder otherwise.
+\end{enumerate}
+
+\begin{lstlisting}[caption={Conditional submission path},label={lst:subpath}]
+"output_sub": os.path.join(working_dir, "submission.csv")
+             if "/kaggle/working" in working_dir
+             else "submission.csv"
+\end{lstlisting}
+
+On Kaggle, only files written under \texttt{/kaggle/working} are captured as kernel outputs.
+
+% ============================================================
+% CHAPTER 3
+% ============================================================
+\chapter{The COCO Annotation Format}
+
+\section{Why COCO?}
+
+The MAGFiLO dataset ships annotations in the COCO JSON schema. A COCO file has three
+top-level arrays:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{l p{10cm}}
+\toprule
+\textbf{Key} & \textbf{Description} \\
+\midrule
+\texttt{images} & List of image records: \texttt{id}, \texttt{file\_name}, \texttt{width}, \texttt{height}. \\
+\texttt{annotations} & Instance records with \texttt{image\_id}, \texttt{category\_id}, and \texttt{segmentation}. \\
+\texttt{categories} & Class definitions (single class: \texttt{filament}). \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Two Segmentation Encodings}
+
+\begin{enumerate}
+  \item \textbf{Polygon list} --- a list of flat coordinate arrays
+        \texttt{[[x1, y1, x2, y2, \ldots, xn, yn]]}.
+  \item \textbf{RLE dictionary} --- a dict with \texttt{counts} and \texttt{size} fields, decoded via
+        \texttt{pycocotools.mask}.
+\end{enumerate}
+
+The conversion function branches on \texttt{isinstance(seg, list)} vs \texttt{isinstance(seg, dict)}.
+
+% ============================================================
+% CHAPTER 4
+% ============================================================
+\chapter{COCO $\to$ YOLO Label Conversion}
+
+\section{Why Conversion is Necessary}
+
+YOLOv8-Seg expects, for every image, a plain-text label file where each line is:
+\[
+  \langle\text{class\_id}\rangle\quad x_1\;y_1\;x_2\;y_2\;\cdots\;x_n\;y_n
+\]
+with coordinates normalized to $[0, 1]$:
+\[
+  x_\text{norm} = \frac{x_\text{pixel}}{w}, \qquad y_\text{norm} = \frac{y_\text{pixel}}{h}
+\]
+
+\section{The \texttt{convert\_coco\_to\_yolo\_seg()} Function}
+
+\begin{lstlisting}[caption={Reproducible train/val split},label={lst:split}]
+np.random.seed(seed)
+image_ids = sorted(list(images.keys()))
+np.random.shuffle(image_ids)
+n_val     = int(len(image_ids) * val_ratio)
+val_ids   = set(image_ids[:n_val])
+train_ids = set(image_ids[n_val:])
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Polygon normalization},label={lst:poly}]
+if isinstance(seg, list):
+    for poly in seg:
+        if len(poly) < 6:
+            continue
+        coords      = np.array(poly).reshape(-1, 2)
+        norm_coords = coords / [w, h]
+        norm_coords = np.clip(norm_coords, 0.0, 1.0)
+        flat        = " ".join([f"{x:.6f} {y:.6f}"
+                                for x, y in norm_coords])
+        label_lines.append(f"0 {flat}")
+\end{lstlisting}
+
+\begin{lstlisting}[caption={RLE decoding and contour extraction},label={lst:rle_dec}]
+elif isinstance(seg, dict):
+    m = mask_utils.decode(seg)
+    contours, _ = cv2.findContours(
+        m.astype(np.uint8),
+        cv2.RETR_EXTERNAL,
+        cv2.CHAIN_APPROX_SIMPLE)
+    for cnt in contours:
+        if len(cnt) < 3:
+            continue
+        coords = cnt.squeeze(1)
+        ...
+\end{lstlisting}
+
+\begin{lstlisting}[caption={YOLO dataset descriptor (\texttt{data.yaml})},label={lst:yaml}]
+yaml_content = f"""path: {os.path.abspath(output_dir)}
+train: images/train
+val:   images/val
+
+names:
+  0: filament
+"""
+\end{lstlisting}
+
+% ============================================================
+% CHAPTER 5
+% ============================================================
+\chapter{Image Preprocessing and Augmentation}
+
+Solaris delegates resizing, normalization, and augmentation to the Ultralytics training loop:
+
+\begin{itemize}
+  \item \textbf{Mosaic augmentation} (\texttt{mosaic=0.5}): Four training images stitched into one
+        composite with 50\% probability, exposing the model to varied scales.
+  \item \textbf{Horizontal flip} (\texttt{fliplr=0.5}) and \textbf{Vertical flip} (\texttt{flipud=0.5}): each applied with 50\%
+        probability. Full-disk solar images have no fixed ``up'' orientation, making flipping
+        physically valid.
+  \item \textbf{Resizing to \texttt{imgsz=2048}}: Images are letterboxed to $2048\times2048$,
+        preserving the fine, thread-like structure of filaments that would be lost at YOLO's
+        default 640-pixel resolution.
+\end{itemize}
+
+% ============================================================
+% CHAPTER 6
+% ============================================================
+\chapter{YOLOv8l-Seg Architecture}
+
+\section{Why an Instance Segmentation Model?}
+
+Filaments can be numerous and closely spaced on a solar disk, so instance segmentation ---
+which distinguishes individual object instances --- is required. YOLOv8-Seg extends YOLOv8
+with a parallel mask-prediction branch.
+
+\section{Architectural Components}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{l p{9cm}}
+\toprule
+\textbf{Block} & \textbf{Role} \\
+\midrule
+Backbone (CSPDarknet) & Hierarchical feature extraction at decreasing spatial resolution. \\
+Neck (PAN-FPN) & Bidirectional multi-scale feature fusion. \\
+Detection Head & Anchor-free bounding box and class confidence prediction. \\
+Mask Prototype Head & Predicts shared prototype masks. \\
+Mask Coefficients & Per-instance weights that linearly combine the prototypes. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The final instance mask:
+\[
+  M_i = \sigma\!\left(\sum_{k=1}^{K} c_{i,k} \cdot P_k\right)
+\]
+
+\section{Why the ``Large'' (l) Variant}
+
+Filaments are thin, low-contrast structures that benefit from the deeper, wider backbone of
+\texttt{yolov8l-seg.pt}. The training batch size is kept small (\texttt{batch=2}) to accommodate the
+memory cost at $2048\times2048$ resolution.
+
+% ============================================================
+% CHAPTER 7
+% ============================================================
+\chapter{The Training Pipeline}
+
+\section{The \texttt{train\_yolov8l\_seg()} Function}
+
+\begin{lstlisting}[caption={Model training invocation},label={lst:train}]
+model = YOLO("yolov8l-seg.pt")
+results = model.train(
+    data=yaml_path,
+    epochs=epochs,
+    imgsz=imgsz,
+    batch=batch,
+    device=0,
+    workers=4,
+    optimizer="AdamW",
+    lr0=0.001,
+    lrf=0.01,
+    mosaic=0.5,
+    fliplr=0.5,
+    flipud=0.5,
+    project=project,
+    name="yolov8l_2048",
+    save=True,
+    verbose=True
+)
+\end{lstlisting}
+
+\section{Parameter-by-Parameter Explanation}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{l p{9cm}}
+\toprule
+\textbf{Parameter} & \textbf{Meaning} \\
+\midrule
+\texttt{data} & Path to the \texttt{data.yaml}. \\
+\texttt{epochs} & Passes over the training set (default 30). \\
+\texttt{imgsz=2048} & High resolution to preserve filament detail. \\
+\texttt{batch=2} & Small batch due to memory cost of $2048\times2048$ on l-variant. \\
+\texttt{device=0} & Train on GPU index 0. \\
+\texttt{workers=4} & Four parallel CPU data-loading processes. \\
+\texttt{optimizer="AdamW"} & Adam with decoupled weight decay. \\
+\texttt{lr0=0.001} & Initial learning rate. \\
+\texttt{lrf=0.01} & Final LR as fraction of \texttt{lr0} (cosine decay). \\
+\texttt{mosaic, fliplr, flipud} & Augmentation probabilities (Chapter 5). \\
+\texttt{project, name} & Output directory: \texttt{<project>/<name>/}. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{The Loss Function}
+
+\[
+  \mathcal{L}_\text{total} = \lambda_\text{box}\mathcal{L}_\text{box}
+                            + \lambda_\text{cls}\mathcal{L}_\text{cls}
+                            + \lambda_\text{dfl}\mathcal{L}_\text{dfl}
+                            + \lambda_\text{mask}\mathcal{L}_\text{mask}
+\]
+
+The mask component is per-pixel binary cross-entropy computed within the ground-truth
+bounding box region.
+
+\section{Checkpointing: \texttt{best.pt} vs \texttt{last.pt}}
+
+Ultralytics saves \texttt{last.pt} (final epoch) and \texttt{best.pt} (best validation mAP epoch).
+Solaris explicitly uses \texttt{best.pt}.
+
+% ============================================================
+% CHAPTER 8
+% ============================================================
+\chapter{Inference Pipeline}
+
+\section{The \texttt{run\_inference()} Function}
+
+\begin{lstlisting}[caption={Prediction call},label={lst:predict}]
+result = model.predict(
+    img_path,
+    imgsz=2048,
+    conf=0.30,
+    iou=0.00,
+    max_det=100,
+    verbose=False
+)[0]
+\end{lstlisting}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{l p{9cm}}
+\toprule
+\textbf{Parameter} & \textbf{Effect} \\
+\midrule
+\texttt{conf=0.30} & Suppress detections with confidence $<0.30$. \\
+\texttt{iou=0.00} & Any box overlap triggers NMS suppression of the lower-confidence box. \\
+\texttt{max\_det=100} & Upper bound on instances per image. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{lstlisting}[caption={Extracting raw prediction tensors},label={lst:tensors}]
+result_masks_data = result.masks.data.cpu().numpy()
+scores = result.boxes.conf.cpu().numpy() \
+    if hasattr(result.boxes, 'conf') \
+    else result.boxes.cls.cpu().numpy()
+\end{lstlisting}
+
+\texttt{result.masks.data} is a tensor of shape $(N, H_m, W_m)$ containing $N$ predicted binary
+masks at the model's internal resolution.
+
+% ============================================================
+% CHAPTER 9
+% ============================================================
+\chapter{Priority-Based Overlap Removal}
+
+\section{Why Overlaps Must Be Removed}
+
+NMS operates on boxes, not pixel masks, so mask-level overlaps can persist. The competition
+requires that no pixel belongs to more than one instance.
+
+\section{The \texttt{remove\_instance\_overlaps()} Function}
+
+\begin{lstlisting}[caption={Confidence-priority overlap elimination},label={lst:overlap}]
+def remove_instance_overlaps(masks, scores):
+    sorted_indices = np.argsort(scores)[::-1]
+    sorted_masks   = masks[sorted_indices]
+
+    accumulated_mask     = np.zeros(masks.shape[1:],
+                                    dtype=np.uint8)
+    non_overlapping_masks = []
+
+    for mask in sorted_masks:
+        clean_mask = mask & ~accumulated_mask
+        non_overlapping_masks.append(clean_mask)
+        accumulated_mask |= mask
+
+    return np.array(non_overlapping_masks)
+\end{lstlisting}
+
+\begin{enumerate}
+  \item Sort by confidence descending; the most confident detection gets first claim on pixels.
+  \item \texttt{accumulated\_mask} tracks all pixels already claimed.
+  \item \texttt{clean\_mask = mask \& \textasciitilde accumulated\_mask} removes pixels already claimed.
+  \item \texttt{accumulated\_mask |= mask} adds the full footprint so later masks are clipped against it.
+\end{enumerate}
+
+\textbf{Worked example} (1D, 6 pixels):
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{lcccccc}
+\toprule
+& 0 & 1 & 2 & 3 & 4 & 5 \\
+\midrule
+Mask A (0.9) & 0 & 0 & 1 & 1 & 1 & 0 \\
+Mask B (0.6) & 0 & 0 & 0 & 1 & 1 & 1 \\
+Clean A      & 0 & 0 & 1 & 1 & 1 & 0 \\
+Clean B      & 0 & 0 & 0 & 0 & 0 & 1 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ============================================================
+% CHAPTER 10
+% ============================================================
+\chapter{Binary Mask to Run-Length Encoding}
+
+\section{What is RLE?}
+
+Run-Length Encoding compresses a binary mask by recording alternating run-lengths of
+background and foreground pixels along a column-major (Fortran-order) traversal of the image.
+
+\section{The \texttt{mask\_to\_rle()} Function}
+
+\begin{lstlisting}[caption={RLE encoding via pycocotools},label={lst:rle_enc}]
+def mask_to_rle(binary_mask):
+    rle = mask_utils.encode(
+        np.asfortranarray(binary_mask.astype(np.uint8)))
+    rle["counts"] = rle["counts"].decode("utf-8")
+    return rle["counts"]
+\end{lstlisting}
+
+\begin{enumerate}
+  \item \texttt{np.asfortranarray} reorders memory to Fortran column-major order required by
+        \texttt{pycocotools}.
+  \item \texttt{mask\_utils.encode} walks the array and emits LEB128-style run lengths.
+  \item \texttt{.decode("utf-8")} converts bytes to a plain string for the CSV cell.
+\end{enumerate}
+
+\section{Resizing Before Encoding}
+
+\begin{lstlisting}[caption={Mask resize and trivial-fragment filtering},label={lst:resize}]
+m_res = cv2.resize(m.astype(np.uint8), (w, h),
+                   interpolation=cv2.INTER_NEAREST)
+if m_res.sum() < 5:
+    continue
+\end{lstlisting}
+
+\texttt{INTER\_NEAREST} is critical for binary masks; linear interpolation would introduce
+non-binary intermediate values. Instances with fewer than 5 foreground pixels are discarded.
+
+% ============================================================
+% CHAPTER 11
+% ============================================================
+\chapter{Submission CSV Generation}
+
+\section{Row Construction}
+
+\begin{lstlisting}[caption={Building the submission DataFrame},label={lst:csv}]
+submission_rows.append({
+    "filament_id":      f"{file_stem}_{inst_idx}",
+    "segmentation_rle": rle_str
+})
+inst_idx += 1
+...
+df_out = pd.DataFrame(submission_rows,
+    columns=["filament_id", "segmentation_rle"])
+df_out.to_csv(output_csv, index=False)
+\end{lstlisting}
+
+Each instance becomes one row identified by
+\texttt{<image\_stem>\_<instance\_index>} (e.g.\ \texttt{img\_0451\_3}).
+\texttt{index=False} matches Kaggle's expected schema.
+
+\section{Sanity Reporting}
+
+The script prints total instance count and number of unique images, giving a quick sanity
+check before upload.
+
+% ============================================================
+% CHAPTER 12
+% ============================================================
+\chapter{Evaluation Metrics: Dice Score and IoU}
+
+\[
+  \text{Dice} = \frac{2|A \cap B|}{|A| + |B|}
+              = \frac{2\,\text{TP}}{2\,\text{TP} + \text{FP} + \text{FN}}
+\]
+\[
+  \text{IoU}  = \frac{|A \cap B|}{|A \cup B|}
+              = \frac{\text{TP}}{\text{TP} + \text{FP} + \text{FN}}
+\]
+\[
+  \text{Dice} = \frac{2\,\text{IoU}}{1 + \text{IoU}}
+\]
+
+where $A$ is the predicted mask, $B$ the ground-truth mask, TP the pixel overlap, FP
+predicted-but-not-GT pixels, and FN GT-but-not-predicted pixels.
+
+% ============================================================
+% CHAPTER 13
+% ============================================================
+\chapter{The Main Entry Point and Orchestration}
+
+\section{Command-Line Interface}
+
+\begin{lstlisting}[caption={Argument parsing},label={lst:args}]
+parser.add_argument("--train",   action="store_true")
+parser.add_argument("--predict", action="store_true")
+parser.add_argument("--model",   type=str,  default=None)
+parser.add_argument("--epochs",  type=int,  default=30)
+parser.add_argument("--imgsz",   type=int,  default=2048)
+parser.add_argument("--batch",   type=int,  default=2)
+\end{lstlisting}
+
+Three invocation modes:
+\begin{itemize}
+  \item \textbf{Default}: convert + train, then infer using fresh weights.
+  \item \textbf{\texttt{--train}}: convert + train only.
+  \item \textbf{\texttt{--predict}}: skip training; use \texttt{--model} or fallback checkpoint search.
+\end{itemize}
+
+\section{Weight Fallback Search}
+
+In predict-only mode, the script checks in order: the freshly trained checkpoint, a bundled
+pretrained filename, and a Kaggle-dataset-mounted pretrained weights path.
+
+% ============================================================
+% CHAPTER 14 - RECOMMENDATIONS AND FUTURE WORK
+% ============================================================
+\chapter{Recommendations and Future Work}
+
+This chapter presents concrete, actionable improvements to the Solaris pipeline that are
+expected to push the Kaggle Dice score beyond the current 0.55 baseline. Each recommendation
+includes a rationale and a ready-to-integrate code snippet.
+
+% ----------------------------------------------------------
+\section{Test-Time Augmentation (TTA)}
+
+\textbf{Rationale:} Running the model on multiple augmented versions of the same image (horizontal
+flip, vertical flip, and the original) and averaging the resulting masks typically improves recall
+for thin, elongated structures like filaments.
+
+\begin{lstlisting}[caption={TTA inference wrapper},label={lst:tta}]
+import numpy as np
+import cv2
+from ultralytics import YOLO
+
+def predict_with_tta(model_path, img_path,
+                     imgsz=2048, conf=0.30):
+    """
+    Runs inference on original + 3 flipped versions,
+    then merges masks by majority vote (>= 2/4 agree).
+    """
+    model = YOLO(model_path)
+    img   = cv2.imread(img_path)
+    h, w  = img.shape[:2]
+
+    augmented_imgs = [
+        img,                  # original
+        cv2.flip(img,  1),   # horizontal flip
+        cv2.flip(img,  0),   # vertical flip
+        cv2.flip(img, -1),   # both axes
+    ]
+    flip_codes = [None, 1, 0, -1]
+
+    vote_map = np.zeros((h, w), dtype=np.float32)
+
+    for aug_img, flip_code in zip(augmented_imgs, flip_codes):
+        tmp_path = "/tmp/tta_aug.jpg"
+        cv2.imwrite(tmp_path, aug_img)
+
+        result = model.predict(
+            tmp_path, imgsz=imgsz,
+            conf=conf, iou=0.00,
+            max_det=100, verbose=False
+        )[0]
+
+        if result.masks is None:
+            continue
+
+        for raw_mask in result.masks.data.cpu().numpy():
+            m = cv2.resize(raw_mask.astype(np.uint8),
+                           (w, h),
+                           interpolation=cv2.INTER_NEAREST)
+            if flip_code is not None:
+                m = cv2.flip(m, flip_code)   # undo flip
+            vote_map += m.astype(np.float32)
+
+    # Accept pixel if >= 2 out of 4 augments agree
+    consensus_mask = (vote_map >= 2).astype(np.uint8)
+    return consensus_mask
+\end{lstlisting}
+
+% ----------------------------------------------------------
+\section{Multi-Scale Inference}
+
+\textbf{Rationale:} Filaments span a wide range of apparent sizes. Running inference at two
+resolutions (e.g.\ 1536 and 2048) and merging via mask union captures both fine-grained
+details and broad structures.
+
+\begin{lstlisting}[caption={Multi-scale inference and mask union},label={lst:multiscale}]
+def predict_multiscale(model, img_path,
+                       scales=(1536, 2048), conf=0.30):
+    """Predict at multiple resolutions and union the masks."""
+    img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+    h, w = img.shape
+    combined = np.zeros((h, w), dtype=np.uint8)
+
+    for scale in scales:
+        result = model.predict(
+            img_path, imgsz=scale,
+            conf=conf, iou=0.00,
+            max_det=100, verbose=False
+        )[0]
+
+        if result.masks is None:
+            continue
+
+        for raw_mask in result.masks.data.cpu().numpy():
+            m = cv2.resize(raw_mask.astype(np.uint8),
+                           (w, h),
+                           interpolation=cv2.INTER_NEAREST)
+            combined = np.maximum(combined, m)
+
+    return combined
+\end{lstlisting}
+
+% ----------------------------------------------------------
+\section{Confidence Threshold Tuning via Cross-Validation}
+
+\textbf{Rationale:} The current \texttt{conf=0.30} was chosen empirically. A grid search over
+the threshold on the validation split finds the value that maximises Dice without re-training.
+
+\begin{lstlisting}[caption={Threshold sweep on validation set},label={lst:conf_sweep}]
+import pandas as pd, json, numpy as np, cv2
+from pathlib import Path
+from pycocotools import mask as mask_utils
+
+def sweep_conf_threshold(model_path, val_images_dir,
+                         val_ann_json,
+                         thresholds=(0.20, 0.25, 0.30,
+                                     0.35, 0.40)):
+    from ultralytics import YOLO
+    model = YOLO(model_path)
+    with open(val_ann_json) as f:
+        gt_data = json.load(f)
+
+    gt_by_img = {}
+    for ann in gt_data["annotations"]:
+        img_id = ann["image_id"]
+        gt_by_img.setdefault(img_id, []).append(
+            mask_utils.decode(ann["segmentation"])
+            if isinstance(ann["segmentation"], dict)
+            else None)
+
+    records = []
+    for conf in thresholds:
+        dice_scores = []
+        for img_info in gt_data["images"]:
+            img_path = str(
+                Path(val_images_dir) / img_info["file_name"])
+            result = model.predict(
+                img_path, imgsz=2048,
+                conf=conf, iou=0.00,
+                max_det=100, verbose=False)[0]
+
+            h, w = img_info["height"], img_info["width"]
+            pred_union = np.zeros((h, w), dtype=np.uint8)
+            if result.masks is not None:
+                for m in result.masks.data.cpu().numpy():
+                    resized = cv2.resize(
+                        m.astype(np.uint8), (w, h),
+                        interpolation=cv2.INTER_NEAREST)
+                    pred_union = np.maximum(pred_union, resized)
+
+            gt_union = np.zeros((h, w), dtype=np.uint8)
+            for gt_mask in gt_by_img.get(img_info["id"], []):
+                if gt_mask is not None:
+                    gt_union = np.maximum(gt_union, gt_mask)
+
+            inter = (pred_union & gt_union).sum()
+            dice  = (2 * inter /
+                     (pred_union.sum() + gt_union.sum() + 1e-6))
+            dice_scores.append(dice)
+
+        records.append({"conf": conf,
+                         "mean_dice": np.mean(dice_scores)})
+
+    return pd.DataFrame(records).sort_values(
+        "mean_dice", ascending=False)
+\end{lstlisting}
+
+% ----------------------------------------------------------
+\section{Longer Training with Cosine LR Warm-Up}
+
+\textbf{Rationale:} The current pipeline trains for 30 epochs with no warm-up. A 3-epoch linear
+warm-up followed by cosine annealing over 60--100 epochs reduces early instability and allows
+the model to find a better loss minimum.
+
+\begin{lstlisting}[caption={Extended training with warm-up and cosine LR},label={lst:lr_warmup}]
+def train_extended(yaml_path, epochs=80, imgsz=2048,
+                   batch=2, project="magfilo_runs"):
+    from ultralytics import YOLO
+    model = YOLO("yolov8l-seg.pt")
+    model.train(
+        data=yaml_path,
+        epochs=epochs,
+        imgsz=imgsz,
+        batch=batch,
+        device=0,
+        workers=4,
+        optimizer="AdamW",
+        lr0=0.001,
+        lrf=0.005,        # tighter final LR (1/200 of lr0)
+        warmup_epochs=3,  # linear warm-up
+        cos_lr=True,      # cosine annealing schedule
+        mosaic=0.5,
+        fliplr=0.5,
+        flipud=0.5,
+        degrees=10.0,     # small random rotation
+        project=project,
+        name="yolov8l_2048_extended",
+        save=True,
+        verbose=True
+    )
+\end{lstlisting}
+
+% ----------------------------------------------------------
+\section{YOLOv8x-Seg (Extra-Large Variant)}
+
+\textbf{Rationale:} The Extra-Large (x) variant has $\approx$68\,M parameters vs 44\,M for l.
+If GPU memory allows (A100 40\,GB recommended at \texttt{batch=1}), switching to
+\texttt{yolov8x-seg.pt} can improve mask mAP for thin, low-contrast objects.
+
+\begin{lstlisting}[caption={Switching to YOLOv8x-Seg},label={lst:yolov8x}]
+# Minimal change: replace model identifier
+model = YOLO("yolov8x-seg.pt")   # was: yolov8l-seg.pt
+
+model.train(
+    data=yaml_path,
+    epochs=50,
+    imgsz=2048,
+    batch=1,           # reduce batch for larger model
+    device=0,
+    optimizer="AdamW",
+    lr0=0.0005,        # lower LR for larger model
+    lrf=0.005,
+    warmup_epochs=3,
+    cos_lr=True,
+    mosaic=0.5,
+    fliplr=0.5,
+    flipud=0.5,
+    project="magfilo_runs",
+    name="yolov8x_2048",
+    save=True
+)
+\end{lstlisting}
+
+% ----------------------------------------------------------
+\section{Post-Processing: Morphological Closing}
+
+\textbf{Rationale:} Small gaps in a predicted mask (from low-contrast mid-filament regions) can
+split one true filament into multiple instances, reducing Dice. A $3\times3$ or $5\times5$
+elliptical morphological closing bridges these gaps before RLE encoding.
+
+\begin{lstlisting}[caption={Morphological closing to fill intra-filament gaps},label={lst:morph}]
+def close_mask_gaps(binary_mask, kernel_size=5):
+    """Apply morphological closing to fill small mask gaps."""
+    kernel = cv2.getStructuringElement(
+        cv2.MORPH_ELLIPSE,
+        (kernel_size, kernel_size))
+    closed = cv2.morphologyEx(
+        binary_mask.astype(np.uint8),
+        cv2.MORPH_CLOSE,
+        kernel)
+    return closed
+
+# Insert before mask_to_rle() in run_inference():
+m_res = cv2.resize(m.astype(np.uint8), (w, h),
+                   interpolation=cv2.INTER_NEAREST)
+m_res = close_mask_gaps(m_res, kernel_size=5)  # <-- NEW
+if m_res.sum() < 5:
+    continue
+rle_str = mask_to_rle(m_res)
+\end{lstlisting}
+
+
+
+
+\end{document}

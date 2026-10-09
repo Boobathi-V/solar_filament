@@ -1,0 +1,208 @@
+Created At: 2026-09-22T13:42:13+05:30
+Completed At: 2026-09-22T13:42:13+05:30
+File Path: `file:///C:/Users/booba/.gemini/antigravity-ide/brain/e6a430e1-9a1d-4da1-aed9-d4764db9133e/.system_generated/steps/2928/content.md`
+Total Lines: 205
+Total Bytes: 9023
+Showing lines 1 to 200
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: Title: Live Content
+2: 
+3: Description: Fetched live
+4: 
+5: Source: https://www.kaggle.com/code/pavloivanin/0-9-solar-filament-baseline-pipeline-u-net
+6: 
+7: ---
+8: 
+9: 
+10: 
+11: <!DOCTYPE html>
+12: <html lang="en">
+13: 
+14: <head>
+15:   <title>(0,9) Solar Filament: Baseline Pipeline (U-Net) | Kaggle</title>
+16:   <meta charset="utf-8" />
+17:     <meta name="robots" content="index, follow" />
+18:   <meta name="description" content="Explore and run AI code with Kaggle Notebooks | Using data from Solar Filament Segmentation Challenge 2026" />
+19:     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0">
+20:   <meta name="theme-color" content="#008ABC" />
+21:   <script nonce="fD23E&#x2B;myeDjIOYKkcsuQ&#x2B;A==" type="text/javascript">
+22:     window["pageRequestStartTime"] = 1790064727902;
+23:     window["pageRequestEndTime"] = 1790064727937;
+24:     window["initialPageLoadStartTime"] = new Date().getTime();
+25:   </script>
+26:   <script nonce="fD23E&#x2B;myeDjIOYKkcsuQ&#x2B;A==" id="gsi-client" src="https://accounts.google.com/gsi/client" async defer></script>
+27:   <script nonce="fD23E&#x2B;myeDjIOYKkcsuQ&#x2B;A==">window.KAGGLE_JUPYTERLAB_PATH = "/static/assets/jupyterlab-v4/jupyterlab-index-068d2a1abc137d35.html";</script>
+28:   <link rel="preconnect" href="https://www.google-analytics.com" crossorigin="anonymous" /><link rel="preconnect" href="https://stats.g.doubleclick.net" /><link rel="preconnect" href="https://storage.googleapis.com" /><link rel="preconnect" href="https://apis.google.com" />
+29:     <link href="/static/images/favicon.ico" rel="shortcut icon" type="image/x-icon" id="dynamic-favicon" />
+30:   <link rel="manifest" href="/static/json/manifest.json" crossorigin="use-credentials">
+31: 
+32: 
+33:   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+34: 
+35:   <link href="https://fonts.googleapis.com/css?family=Inter:400,400i,500,500i,600,600i,700,700i&display=swap"
+36:     rel="preload" as="style" />
+37:   <link href="https://fonts.googleapis.com/css2?family=Google+Symbols:FILL,wght@0..1,300..700&display=block"
+38:     rel="preload" as="style" />
+39:   <link href="https://fonts.googleapis.com/css?family=Inter:400,400i,500,500i,600,600i,700,700i&display=swap"
+40:     rel="stylesheet" media="print" id="async-google-font-1" />
+41:   <link href="https://fonts.googleapis.com/css2?family=Google+Symbols:FILL,wght@0..1,300..700&display=block"
+42:     rel="stylesheet" media="print" id="async-google-font-2" />
+43:   <script nonce="fD23E&#x2B;myeDjIOYKkcsuQ&#x2B;A==" type="text/javascript">
+44:     const styleSheetIds = ["async-google-font-1", "async-google-font-2"];
+45:     styleSheetIds.forEach(function (id) {
+46:       document.getElementById(id).addEventListener("load", function() {
+47:         this.media = "all";
+48:       });
+49:     });
+50:   </script>
+51: 
+52: 
+53:     <link rel="canonical" href="/code/pavloivanin/0-9-solar-filament-baseline-pipeline-u-net" />
+54:     <link rel="stylesheet" type="text/css" href="/static/assets/app.css?v=cee4fdab64ac46b7" />
+55: 
+56:   
+57:     
+58:  
+59:       <script nonce="fD23E&#x2B;myeDjIOYKkcsuQ&#x2B;A==">
+60:         try{(function(a,s,y,n,c,h,i,d,e){d=s.createElement("style");
+61:         d.appendChild(s.createTextNode(""));s.head.appendChild(d);d=d.sheet;
+62:         y=y.map(x => d.insertRule(x + "{ opacity: 0 !important }"));
+63:         h.start=1*new Date;h.end=i=function(){y.forEach(x => x<d.cssRules.length ? d.deleteRule(x) : {})};
+64:         (a[n]=a[n]||[]).hide=h;setTimeout(function(){i();h.end=null},c);h.timeout=c;
+65:         })(window,document,['.site-header-react__nav'],'dataLayer',2000,{'GTM-52LNT9S':true});}catch(ex){}
+66:     </script>
+67:     <script nonce="fD23E&#x2B;myeDjIOYKkcsuQ&#x2B;A==">
+68:         window.dataLayer = window.dataLayer || [];
+69:         function gtag() { dataLayer.push(arguments); }
+70:         gtag('js', new Date());
+71:         gtag('config', 'G-T7QHS60L4Q', {
+72:             'optimize_id': 'GTM-52LNT9S',
+73:             'displayFeaturesTask': null,
+74:             'send_page_view': false,
+75:             'content_group1': 'Notebooks',
+76:             'user_properties': {
+77:                 'logged_in': false,
+78:             }
+79:         });
+80:     </script>
+81:     <script nonce="fD23E&#x2B;myeDjIOYKkcsuQ&#x2B;A==" async src="https://www.googletagmanager.com/gtag/js?id=G-T7QHS60L4Q"></script>
+82: 
+83: 
+84:   
+85:     
+86:     <meta property="og:url" content="https://kaggle.com/code/pavloivanin/0-9-solar-filament-baseline-pipeline-u-net" />
+87:     <meta property="og:title" content="(0,9) Solar Filament: Baseline Pipeline (U-Net)" />
+88:     <meta property="og:description" content="Explore and run AI code with Kaggle Notebooks | Using data from Solar Filament Segmentation Challenge 2026" />
+89:     <meta property="og:type" content="website" />
+90: 
+91:         <meta property="og:image" content="https://www.kaggle.com/open-graph/images/Notebooks/128118773" />
+92:         <meta property="twitter:image" content="https://www.kaggle.com/open-graph/images/Notebooks/128118773" />
+93:     <meta property="twitter:card" content="summary_large_image" />
+94:     <meta property="twitter:title" content="(0,9) Solar Filament: Baseline Pipeline (U-Net)" />
+95:     <meta property="twitter:description" content="Explore and run AI code with Kaggle Notebooks | Using data from Solar Filament Segmentation Challenge 2026" />
+96:     <meta property="twitter:image:alt" content="Explore and run AI code with Kaggle Notebooks | Using data from Solar Filament Segmentation Challenge 2026" />
+97: 
+98: 
+99: 
+100: 
+101:   <meta name="twitter:site" content="@Kaggle" /> 
+102:   
+103:     
+104:     <script nonce="fD23E+myeDjIOYKkcsuQ+A==" type="application/ld+json">{"@context":"http://schema.org/","@type":"Article","author":{"@type":"Person","name":"pavloivanin","sameAs":null},"headline":"(0,9) Solar Filament: Baseline Pipeline (U-Net)","url":"https://www.kaggle.com","dateModified":"2026-07-21T12:43:39.82Z","datePublished":"2026-07-21T12:43:39.82Z","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.kaggle.com"},"publisher":{"@type":"Organization","name":"Kaggle","sameAs":"https://www.kaggle.com","logo":{"type":"ImageObject","url":"https://www.kaggle.com/static/images/site-logo.png"}},"image":["https://storage.googleapis.com/kaggle-avatars/thumbnails/default-thumb.png"],"description":""}</script>
+105: 
+106: 
+107:   
+108:     
+109:         <link rel="alternate" type="application/json+oembed"
+110:           href="https://www.kaggle.com/oembed/kernel?url=https%3A%2F%2Fwww.kaggle.com%2Fcode%2Fpavloivanin%2F0-9-solar-filament-baseline-pipeline-u-net%3FscriptVersionId%3D336930013"
+111:           title="(0,9) Solar Filament: Baseline Pipeline (U-Net)" />
+112: 
+113: 
+114:   
+115:     
+116: 
+117: 
+118: 
+119:     <script nonce="fD23E&#x2B;myeDjIOYKkcsuQ&#x2B;A==">window['useKaggleAnalytics'] = true;</script>
+120: 
+121:   <script id="gapi-target" nonce="fD23E&#x2B;myeDjIOYKkcsuQ&#x2B;A==" src="https://apis.google.com/js/api.js" defer
+122:     async></script>
+123:   <script nonce="fD23E+myeDjIOYKkcsuQ+A==" src="/static/assets/runtime.js?v=2392959cdab927d1"></script>
+124:   <script nonce="fD23E+myeDjIOYKkcsuQ+A==" src="/static/assets/vendor.js?v=41a30c87d0c62580"></script>
+125:   <script nonce="fD23E+myeDjIOYKkcsuQ+A==" src="/static/assets/app.js?v=a66597b288845158"></script>
+126:     <script nonce="fD23E&#x2B;myeDjIOYKkcsuQ&#x2B;A==" type="text/javascript">
+127:       window.kaggleStackdriverConfig = {
+128:         key: 'AIzaSyA4eNqUdRRskJsCZWVz-qL655Xa5JEMreE',
+129:         projectId: 'kaggle-161607',
+130:         service: 'web-fe',
+131:         version: 'ci',
+132:         userId: '0'
+133:       }
+134:     </script>
+135: </head>
+136: <body>
+137:   <div id="root">
+138:     
+139: 
+140: 
+141: 
+142: 
+143: 
+144: 
+145: 
+146: 
+147: 
+148: 
+149: <script nonce="fD23E&#x2B;myeDjIOYKkcsuQ&#x2B;A==" type="text/x-mathjax-config">
+150:     MathJax.Hub.Config({
+151:     jax: ['input/TeX', 'output/SVG'],
+152:     "HTML-CSS": {
+153:     preferredFont: "TeX",
+154:     availableFonts: ["STIX", "TeX"],
+155:     linebreaks: {
+156:     automatic: true
+157:     },
+158:     EqnChunk: (MathJax.Hub.Browser.isMobile ? 10 : 50)
+159:     },
+160:     tex2jax: {
+161:     inlineMath: [["\\(", "\\)"], ["\\\\(", "\\\\)"]],
+162:     displayMath: [["$$", "$$"], ["\\[", "\\]"]],
+163:     processEscapes: true,
+164:     ignoreClass: "tex2jax_ignore|dno"
+165:     },
+166:     TeX: {
+167:     noUndefined: {
+168:     attributes: {
+169:     mathcolor: "red",
+170:     mathbackground: "#FFEEEE",
+171:     mathsize: "90%"
+172:     }
+173:     }
+174:     },
+175:     Macros: {
+176:     href: "{}"
+177:     },
+178:     skipStartupTypeset: true,
+179:     messageStyle: "none",
+180:     extensions: ["Safe.js"],
+181:     });
+182: </script>
+183: <script type="text/javascript" nonce="fD23E&#x2B;myeDjIOYKkcsuQ&#x2B;A==">
+184:   window.addEventListener("DOMContentLoaded", () => {
+185:     const head = document.getElementsByTagName("head")[0];
+186:     const lib = document.createElement("script");
+187:     lib.type = "text/javascript";
+188:     // Always use the production asset in local dev, which is served from GCS. We tried to proxy and / or serve this
+189:     // in a better way in localhost, but it didn't work out. See b/328073416#comment8 for details.
+190:     const forceProdHost = window.location.hostname === "localhost";
+191:     lib.src = `${forceProdHost ? "https://www.kaggle.com" : ""}/static/mathjax/2.7.9/MathJax.js?config=TeX-AMS_SVG`;
+192:     head.appendChild(lib);
+193:   });
+194: </script>
+195: 
+196: 
+197: 
+198: 
+199: 
+200:   </div>
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

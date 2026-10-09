@@ -60,23 +60,25 @@ data/
 train/
 test/
 validation/
+working/yolo_seg_dataset/
+working_solaris/
 
 # ==========================================
 # TRAINED MODEL FILES
 # ==========================================
 models/
+models.zip
+weights/
 *.pth
 *.pt
 *.ckpt
 *.h5
 *.keras
+*.npy
 
 # ==========================================
 # GENERATED OUTPUT FILES
 # ==========================================
-submission*.csv
-oof_predictions.npy
-mask_sanity_check.png
 *.log
 logs/
 
